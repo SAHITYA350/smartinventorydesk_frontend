@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Base API configuration connecting to backend on port 3001
-const API_BASE_URL = 'http://localhost:3001';
+// Base API URL — reads from env variable in production, falls back to localhost in dev
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
