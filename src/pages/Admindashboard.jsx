@@ -164,8 +164,9 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchData();
 
-    // Socket.io Real-Time Admin Connection
-    const socket = io('http://localhost:3001');
+    // Socket.io Real-Time Admin Connection — use VITE env var in production
+    const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
     socket.on('new_order', (data) => {
       setRealtimeNotification(
@@ -189,19 +190,21 @@ const AdminDashboard = () => {
       }
     });
 
-    socket.on('order_status_updated', () => {
-      fetchData();
-    });
+    socket.on('order_status_updated', () => fetchData());
+    socket.on('stock_updated', () => fetchData());
+    socket.on('category_status_updated', () => fetchData());
+    socket.on('bill_created', () => fetchData());
+    socket.on('product_updated', () => fetchData());
 
-    socket.on('stock_updated', () => {
+    // Auto-refresh every 30 seconds as fallback if socket misses events
+    const autoRefreshInterval = setInterval(() => {
       fetchData();
-    });
+    }, 30000);
 
-    socket.on('category_status_updated', () => {
-      fetchData();
-    });
-
-    return () => socket.disconnect();
+    return () => {
+      socket.disconnect();
+      clearInterval(autoRefreshInterval);
+    };
   }, []);
 
   useEffect(() => {

@@ -280,50 +280,66 @@ const CustomerStore = () => {
     setError('');
     setMessage('Detecting live GPS location...');
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
+    const processPosition = async (position) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+        );
+        const data = await response.json();
+        const addressText =
+          data?.display_name || `GPS Position (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+        setShippingAddress(addressText);
+        const locObj = {
+          latitude: lat,
+          longitude: lng,
+          address: addressText,
+          updatedAt: new Date().toISOString(),
+        };
+        setLiveLocation(locObj);
+        setMessage('Live GPS location detected & address updated!');
+      } catch (err) {
+        const fallbackText = `GPS Position (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+        setShippingAddress(fallbackText);
+        setLiveLocation({
+          latitude: lat,
+          longitude: lng,
+          address: fallbackText,
+          updatedAt: new Date().toISOString(),
+        });
+        setMessage('Live GPS position captured!');
+      } finally {
+        setDetectingGps(false);
+      }
+    };
 
-        try {
-          // Reverse Geocoding using OpenStreetMap Nominatim Free API
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
-          );
-          const data = await response.json();
-          const addressText =
-            data?.display_name || `GPS Position (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-
-          setShippingAddress(addressText);
-          const locObj = {
-            latitude: lat,
-            longitude: lng,
-            address: addressText,
-            updatedAt: new Date().toISOString(),
-          };
-          setLiveLocation(locObj);
-          setMessage('Live GPS location detected & address updated!');
-        } catch (err) {
-          const fallbackText = `GPS Position (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
-          setShippingAddress(fallbackText);
-          setLiveLocation({
-            latitude: lat,
-            longitude: lng,
-            address: fallbackText,
-            updatedAt: new Date().toISOString(),
-          });
-          setMessage('Live GPS position captured!');
-        } finally {
-          setDetectingGps(false);
-        }
-      },
-      (err) => {
+    const onError = (err) => {
+      if (err.code === err.TIMEOUT || err.code === 3) {
+        // High-accuracy timed out — retry with low accuracy (works better on mobile)
+        setMessage('Retrying with network location...');
+        navigator.geolocation.getCurrentPosition(
+          processPosition,
+          (err2) => {
+            setError(`GPS Error: ${err2.message}. Please allow location access.`);
+            setDetectingGps(false);
+          },
+          { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 }
+        );
+      } else {
         setError(`GPS Error: ${err.message}. Please allow location access.`);
         setDetectingGps(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      }
+    };
+
+    // First attempt: high accuracy (GPS chip)
+    navigator.geolocation.getCurrentPosition(
+      processPosition,
+      onError,
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
+
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
