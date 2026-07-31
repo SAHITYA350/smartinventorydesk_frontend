@@ -1590,7 +1590,7 @@ const CustomerStore = () => {
           />
         )}
       </div>
-      <div className="storefront-fixed-footer">
+      <div style={{ width: '100%', marginTop: 24 }}>
         <StoreFooter />
       </div>
     </div>

@@ -873,7 +873,7 @@ select.shadcn-input option, select.modern-neo-select option {
 
 @media (max-width: 640px) {
   .storefront-main-container {
-    padding-bottom: 280px !important; /* Clears compact footer on mobile */
+    padding-bottom: 0 !important;
   }
 
   .store-products-grid {
