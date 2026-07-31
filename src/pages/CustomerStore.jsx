@@ -144,26 +144,60 @@ const CustomerStore = () => {
   };
 
   useEffect(() => {
-    // Socket.io Real-Time Client Connection
-    const socket = io('http://localhost:3001');
+    // Socket.io Real-Time Client Connection — use env var in production
+    const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
+    // Order status changed by admin (e.g. Pending → Dispatched → Delivered)
     socket.on('order_status_updated', (data) => {
-      setSocketToast(`Order Update: Status changed to ${data.orderStatus.toUpperCase()}`);
+      setSocketToast(`📦 Order Update: Status changed to ${(data.orderStatus || 'updated').toUpperCase()}`);
       fetchMyOrders();
+      setTimeout(() => setSocketToast(null), 5000);
     });
 
+    // Admin updated/added/deleted a product → refresh catalog
     socket.on('stock_updated', () => {
       fetchProducts();
     });
 
-    socket.on('category_status_updated', () => {
-      // Re-fetch products and categories when admin toggles availability
+    socket.on('product_updated', () => {
+      fetchProducts();
+    });
+
+    socket.on('product_added', () => {
       fetchProducts();
       fetchCategories();
     });
 
-    return () => socket.disconnect();
+    socket.on('product_deleted', () => {
+      fetchProducts();
+    });
+
+    // Admin toggled category active/inactive → hide/show products
+    socket.on('category_status_updated', () => {
+      fetchProducts();
+      fetchCategories();
+    });
+
+    // Customer's own order was placed successfully (cross-tab sync)
+    socket.on('new_order', (data) => {
+      if (data?.customerId === authUser?._id) {
+        fetchMyOrders();
+      }
+    });
+
+    // Auto-refresh every 30 seconds as safety net (catches any missed socket events)
+    const autoRefresh = setInterval(() => {
+      fetchProducts();
+      fetchMyOrders();
+    }, 30000);
+
+    return () => {
+      socket.disconnect();
+      clearInterval(autoRefresh);
+    };
   }, []);
+
 
   const fetchProducts = async () => {
     try {
