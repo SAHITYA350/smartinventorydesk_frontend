@@ -48,8 +48,8 @@ const socialLinks = [
   },
   {
     name: 'LeetCode',
-    handle: 'balasur',
-    url: 'https://www.leetcode.com/balasur',
+    handle: 'sahityaghosh',
+    url: 'https://leetcode.com/u/sahityaghosh/',
     badge: 'https://img.shields.io/badge/-LeetCode-FFA116?style=flat-square&logo=LeetCode&logoColor=black',
     color: '#FFA116',
     icon: Code2,
