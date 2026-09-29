@@ -96,12 +96,12 @@ const AdminDashboard = () => {
     try {
       const audio = new Audio(notify1Sound);
       audio.volume = 1;
-      if (audioUnlockedRef.current) {
-        audio.play().catch((e) => console.log('Audio play error:', e));
-      } else {
-        // Queue it — will play on next user interaction
+      audio.play().then(() => {
+        audioUnlockedRef.current = true;
+      }).catch((e) => {
+        console.log('Audio autoplay info (awaiting user interaction):', e);
         pendingAudioRef.current = audio;
-      }
+      });
     } catch (e) {
       console.error('Audio init error:', e);
     }
@@ -170,7 +170,15 @@ const AdminDashboard = () => {
 
     socket.on('new_order', (data) => {
       setRealtimeNotification(
-        `REAL-TIME ALERT: New Order #${data.orderNumber} placed by ${data.customerName} for ₹${data.totalAmount} (${data.paymentMethod.toUpperCase()})`
+        `REAL-TIME ALERT: New Order #${data.orderNumber} placed by ${data.customerName} for ₹${data.totalAmount} (${(data.paymentMethod || 'COD').toUpperCase()})`
+      );
+      playNotify1();
+      fetchData();
+    });
+
+    socket.on('payment_success', (data) => {
+      setRealtimeNotification(
+        `💳 PAYMENT RECEIVED: Order #${data.orderId ? data.orderId.toString().slice(-6).toUpperCase() : ''} payment confirmed for ₹${data.totalAmount}!`
       );
       playNotify1();
       fetchData();
@@ -348,7 +356,11 @@ const AdminDashboard = () => {
 
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
     try {
-      const res = await axiosInstance.put(`/api/admin/orders/${orderId}`, { orderStatus: newStatus });
+      const payload = { orderStatus: newStatus };
+      if (newStatus === 'delivered' || newStatus === 'completed') {
+        payload.paymentStatus = 'paid';
+      }
+      const res = await axiosInstance.put(`/api/admin/orders/${orderId}`, payload);
       if (res.data.success) {
         triggerSuccessToast(`Order marked as ${newStatus.toUpperCase()}`);
         fetchData();

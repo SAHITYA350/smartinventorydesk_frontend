@@ -1,40 +1,29 @@
 import axios from 'axios';
 
-// Base API URL — reads from env variable in production, falls back to localhost in dev
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// Request Interceptor: Automatically attach Bearer token from localStorage to every request
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Clean token of surrounding quotes if present
-      const cleanToken = token.replace(/^"(.*)"$/, '$1').trim();
-      config.headers.Authorization = `Bearer ${cleanToken}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// Attach token from localStorage to every request
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-// Response Interceptor: Catch unauthorized/expired token errors globally
+// On 401, clear stored data and redirect to login
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
-      // Token expired or invalid -> clear stored token
-      console.warn('Session expired or unauthorized request. Clearing token.');
+    if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

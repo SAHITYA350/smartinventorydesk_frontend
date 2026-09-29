@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axiosInstance from '../api/axiosInstance';
+import notify2Sound from '../../notification/notify2.mp3';
 import Input from '../components/ui/input';
 import Button from '../components/ui/button';
 import CustomSelect from '../components/ui/CustomSelect';
@@ -117,6 +118,13 @@ const BillingDesk = () => {
         setCustomerName('Walk-in Customer');
         setCustomerPhone('');
         fetchProducts();
+        
+        try {
+          const audio = new Audio(notify2Sound);
+          audio.play().catch(e => console.error('Audio playback failed:', e));
+        } catch (e) {
+          console.error(e);
+        }
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to generate bill');
@@ -179,7 +187,7 @@ const BillingDesk = () => {
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 icon={Phone}
-                placeholder="9876543210"
+                placeholder="1234567890"
               />
             </div>
 

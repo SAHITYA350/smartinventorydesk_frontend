@@ -1,90 +1,66 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 import axiosInstance from '../api/axiosInstance';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem('user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
   });
-  const [token, setToken] = useState(() => localStorage.getItem('token') || '');
+
   const [loading, setLoading] = useState(false);
 
   const login = async (email, password) => {
     setLoading(true);
     try {
-      const response = await axiosInstance.post('/api/auth/login', { email, password });
-      const { user: userData, token: jwtToken } = response.data;
-
-      setUser(userData);
-      setToken(jwtToken);
+      const res = await axiosInstance.post('/api/auth/login', { email, password });
+      const { user: userData, token } = res.data;
 
       localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', jwtToken);
-
+      localStorage.setItem('token', token);
+      setUser(userData);
       setLoading(false);
-
       return { success: true, user: userData };
-    } catch (error) {
+    } catch (err) {
       setLoading(false);
-      const message = error.response?.data?.message || 'Login failed';
-      return { success: false, message };
+      return { success: false, message: err.response?.data?.message || 'Login failed' };
     }
   };
 
-  const register = async (
-    name,
-    email,
-    password,
-    role = 'customer',
-    phoneNumber = '',
-    DOB = '',
-    profileImage = ''
-  ) => {
+  const register = async (name, email, password, role = 'customer', phoneNumber = '', DOB = '', profileImage = '') => {
     setLoading(true);
     try {
-      const response = await axiosInstance.post('/api/auth/register', {
-        name,
-        email,
-        password,
-        role,
-        phoneNumber,
-        DOB,
-        profileImage,
+      const res = await axiosInstance.post('/api/auth/register', {
+        name, email, password, role, phoneNumber, DOB, profileImage,
       });
-      const { user: userData, token: jwtToken } = response.data;
-
-      setUser(userData);
-      setToken(jwtToken);
+      const { user: userData, token } = res.data;
 
       localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', jwtToken);
-
+      localStorage.setItem('token', token);
+      setUser(userData);
       setLoading(false);
       return { success: true, user: userData };
-    } catch (error) {
+    } catch (err) {
       setLoading(false);
-      const message = error.response?.data?.message || 'Registration failed';
-      return { success: false, message };
+      return { success: false, message: err.response?.data?.message || 'Registration failed' };
     }
   };
 
-  const updateUser = (updatedUserData) => {
-    const newUserState = { ...user, ...updatedUserData };
-    setUser(newUserState);
-    localStorage.setItem('user', JSON.stringify(newUserState));
+  const updateUser = (updated) => {
+    const merged = { ...user, ...updated };
+    setUser(merged);
+    localStorage.setItem('user', JSON.stringify(merged));
   };
 
   const logout = () => {
     setUser(null);
-    setToken('');
     localStorage.removeItem('user');
     localStorage.removeItem('token');
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, updateUser, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

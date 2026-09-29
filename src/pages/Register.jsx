@@ -244,7 +244,7 @@ const Register = () => {
                 type="text"
                 name="phoneNumber"
                 icon={Phone}
-                placeholder="8777099335"
+                placeholder="1234567890"
                 value={formData.phoneNumber}
                 onChange={handleChange}
               />

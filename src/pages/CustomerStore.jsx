@@ -148,10 +148,22 @@ const CustomerStore = () => {
     const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
-    // Order status changed by admin (e.g. Pending → Dispatched → Delivered)
+    // Listen for real-time order status updates (e.g., from Admin or payment gateway)
     socket.on('order_status_updated', (data) => {
-      setSocketToast(`📦 Order Update: Status changed to ${(data.orderStatus || 'updated').toUpperCase()}`);
+      const currentStatus = (data.orderStatus || 'updated').toLowerCase();
+      
+      // Provide user-friendly, context-aware notification messages
+      if (currentStatus === 'cancelled') {
+        setSocketToast(`❌ Payment Failed / Cancelled: Order #${data.orderId.slice(-6).toUpperCase()} was voided.`);
+      } else if (currentStatus === 'delivered') {
+        setSocketToast(`🎉 Great news! Order #${data.orderId.slice(-6).toUpperCase()} has been delivered.`);
+      } else {
+        setSocketToast(`📦 Order Update: Status changed to ${currentStatus.toUpperCase()}`);
+      }
+      
       fetchMyOrders();
+      
+      // Auto-hide the toast after 5 seconds
       setTimeout(() => setSocketToast(null), 5000);
     });
 
@@ -464,17 +476,31 @@ const CustomerStore = () => {
             color: '#38bdf8',
           },
           modal: {
-            ondismiss: function () {
+            ondismiss: async function () {
               setCheckoutProcessing(false);
-              setMessage('Payment window closed. Order is saved in My Orders tab.');
+              // The customer closed the Razorpay window mid-way without completing payment.
+              // We should immediately cancel the pending order in the backend to free up reserved stock.
+              try {
+                await axiosInstance.put(`/api/customer/orders/${createdDbOrder._id || createdDbOrder.id}/cancel`);
+                setError('Payment was cancelled mid-way. Your order has been voided.');
+              } catch (cancelErr) {
+                setError('Payment cancelled. Please check My Orders to see order status.');
+              }
               setCart([]);
-              fetchMyOrders();
-              setActiveView('orders');
+              fetchProducts(); // Refresh stock
             },
           },
         };
 
         const rzp = new window.Razorpay(options);
+
+        // Explicitly handle failed payment attempts 
+        rzp.on('payment.failed', function (response) {
+          console.error('Payment Failed:', response.error);
+          // Razorpay will usually let the user retry within the same modal, 
+          // but we can log it or show a quick toast if needed.
+        });
+
         rzp.open();
       } else {
         // Cash on Delivery Flow
